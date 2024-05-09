@@ -163,9 +163,18 @@ def setup_model(args, model_dtype, model_kwargs, logger):
     else:
         model = AutoModelForCausalLM.from_pretrained(args.model_name_or_path, torch_dtype=model_dtype, **model_kwargs)
     if args.quant_config:
-        import habana_quantization_toolkit
+        # import habana_quantization_toolkit
+        # habana_quantization_toolkit.prep_model(model)
 
-        habana_quantization_toolkit.prep_model(model)
+        from neural_compressor.torch import FP8QuantConfig, convert, prepare
+
+        quant_config = os.getenv('QUANT_CONFIG', None)
+        config = FP8QuantConfig.from_json_file(quant_config)
+        if config.calibrate:
+            model = prepare(model, config)
+        if config.quantize:
+            model = convert(model, config)
+
     model = model.eval().to(args.device)
 
     if args.use_hpu_graphs:
